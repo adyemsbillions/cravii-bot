@@ -64,20 +64,9 @@ const restaurants = [
 ];
 
 /* ---------------- QR ---------------- */
-
-const fs = require('fs');
-
 client.on('qr', (qr) => {
-    console.log('QR RECEIVED, saving as image...');
-
-    const { createCanvas } = require('canvas');
-    const QRCode = require('qrcode');
-
-    QRCode.toFile('qr.png', qr, {
-        width: 500
-    });
-
-    console.log('Check qr.png file and scan it');
+    console.log('Scan this QR in WhatsApp:\n');
+    qrcode.generate(qr, { small: false });
 });
 
 /* ---------------- READY ---------------- */
