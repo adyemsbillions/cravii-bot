@@ -3,11 +3,12 @@ const qrcode = require('qrcode-terminal');
 
 const client = new Client({
 
-    authStrategy: new LocalAuth(),
+    authStrategy: new LocalAuth({
+        dataPath: './session'
+    }),
 
     puppeteer: {
         headless: true,
-        executablePath: '/opt/render/.cache/puppeteer/chrome/linux-146.0.7680.31/chrome-linux64/chrome',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -18,6 +19,8 @@ const client = new Client({
 });
 
 const users = {};
+
+/* ---------------- RESTAURANTS ---------------- */
 
 const restaurants = [
     "Man Must Wack",
@@ -60,44 +63,39 @@ const restaurants = [
     "Savor Station"
 ];
 
+/* ---------------- QR ---------------- */
+
 client.on('qr', (qr) => {
-
+    console.log("SCAN THIS QR:");
     qrcode.generate(qr, { small: true });
-
 });
+
+/* ---------------- READY ---------------- */
 
 client.on('ready', () => {
-
     console.log('Cravii Bot is Ready 🚚');
-
 });
+
+/* ---------------- MESSAGE HANDLER ---------------- */
 
 client.on('message_create', async (message) => {
 
     if (message.fromMe) return;
 
     const chatId = message.from;
-
     const text = message.body.trim();
 
     if (!users[chatId]) {
-
-        users[chatId] = {
-            step: 'start'
-        };
+        users[chatId] = { step: 'start' };
     }
 
     const user = users[chatId];
 
-
-
-    // ================= START =================
+    /* ---------------- START ---------------- */
 
     if (text.toLowerCase() === 'hi') {
 
-        users[chatId] = {
-            step: 'main_menu'
-        };
+        user.step = 'main_menu';
 
         return message.reply(`Welcome to Cravii Logistics 🚚
 
@@ -106,328 +104,95 @@ client.on('message_create', async (message) => {
 3. Order Food`);
     }
 
-
-
-    // ================= MAIN MENU =================
+    /* ---------------- MENU ---------------- */
 
     if (user.step === 'main_menu') {
 
-        // SEND PARCEL
         if (text === '1') {
-
             user.step = 'parcel_pickup';
-
             return message.reply('📍 Enter Pickup Location');
         }
 
-        // RECEIVE PARCEL
-        else if (text === '2') {
-
+        if (text === '2') {
             user.step = 'receive_sender_name';
-
             return message.reply('📦 Enter Sender Name');
         }
 
-        // FOOD
-        else if (text === '3') {
+        if (text === '3') {
 
             user.step = 'food_restaurant';
 
-            let list = '🍔 Choose Restaurant\n\n';
+            let list = "🍔 Choose Restaurant\n\n";
 
             restaurants.forEach((r, i) => {
-
                 list += `${i + 1}. ${r}\n`;
-
             });
 
             return message.reply(list);
         }
 
-        else {
-
-            return message.reply('Reply with 1, 2 or 3');
-        }
+        return message.reply('Reply 1, 2 or 3');
     }
 
-
-
-    // ================= SEND PARCEL =================
-
-    if (user.step === 'parcel_pickup') {
-
-        user.pickup = text;
-
-        user.step = 'parcel_receiver';
-
-        return message.reply('👤 Enter Receiver Name');
-    }
-
-    if (user.step === 'parcel_receiver') {
-
-        user.receiver = text;
-
-        user.step = 'parcel_phone';
-
-        return message.reply('📞 Enter Receiver Phone');
-    }
-
-    if (user.step === 'parcel_phone') {
-
-        user.phone = text;
-
-        user.step = 'parcel_delivery';
-
-        return message.reply('📍 Enter Delivery Location');
-    }
-
-    if (user.step === 'parcel_delivery') {
-
-        user.delivery = text;
-
-        user.step = 'parcel_item';
-
-        return message.reply('📦 Describe Parcel');
-    }
-
-    if (user.step === 'parcel_item') {
-
-        user.item = text;
-
-        user.step = 'parcel_confirm';
-
-        return message.reply(`📦 PARCEL SUMMARY
-
-📍 Pickup: ${user.pickup}
-
-👤 Receiver: ${user.receiver}
-
-📞 Phone: ${user.phone}
-
-📦 Parcel: ${user.item}
-
-📍 Delivery: ${user.delivery}
-
-🚚 Delivery Fee: ₦2200
-
-1. Proceed
-2. Cancel`);
-    }
-
-
-
-    // ================= PARCEL CONFIRM =================
-
-    if (user.step === 'parcel_confirm') {
-
-        if (text === '1') {
-
-            user.step = 'done';
-
-            return message.reply(`✅ Parcel Delivery Confirmed
-
-Your rider will contact you shortly.
-
-Reply HI to start again.`);
-        }
-
-        else if (text === '2') {
-
-            delete users[chatId];
-
-            return message.reply('❌ Parcel Order Cancelled');
-        }
-
-        else {
-
-            return message.reply('Reply with:\n1. Proceed\n2. Cancel');
-        }
-    }
-
-
-
-    // ================= RECEIVE PARCEL =================
-
-    if (user.step === 'receive_sender_name') {
-
-        user.sender = text;
-
-        user.step = 'receive_phone';
-
-        return message.reply('📞 Enter Sender Phone');
-    }
-
-    if (user.step === 'receive_phone') {
-
-        user.sender_phone = text;
-
-        user.step = 'receive_pickup';
-
-        return message.reply('📍 Enter Pickup Location');
-    }
-
-    if (user.step === 'receive_pickup') {
-
-        user.pickup = text;
-
-        user.step = 'receive_delivery';
-
-        return message.reply('📍 Enter Delivery Location');
-    }
-
-    if (user.step === 'receive_delivery') {
-
-        user.delivery = text;
-
-        user.step = 'receive_confirm';
-
-        return message.reply(`📦 RECEIVE PARCEL SUMMARY
-
-👤 Sender: ${user.sender}
-
-📞 Phone: ${user.sender_phone}
-
-📍 Pickup: ${user.pickup}
-
-📍 Delivery: ${user.delivery}
-
-🚚 Delivery Fee: ₦2200
-
-1. Proceed
-2. Cancel`);
-    }
-
-
-
-    // ================= RECEIVE CONFIRM =================
-
-    if (user.step === 'receive_confirm') {
-
-        if (text === '1') {
-
-            user.step = 'done';
-
-            return message.reply(`✅ Parcel Pickup Confirmed
-
-Your rider will contact you shortly.
-
-Reply HI to start again.`);
-        }
-
-        else if (text === '2') {
-
-            delete users[chatId];
-
-            return message.reply('❌ Parcel Pickup Cancelled');
-        }
-
-        else {
-
-            return message.reply('Reply with:\n1. Proceed\n2. Cancel');
-        }
-    }
-
-
-
-    // ================= FOOD =================
+    /* ---------------- FOOD FLOW ---------------- */
 
     if (user.step === 'food_restaurant') {
 
         const num = parseInt(text);
 
         if (isNaN(num) || num < 1 || num > restaurants.length) {
-
-            return message.reply('❌ Invalid restaurant number');
+            return message.reply("Invalid selection");
         }
 
         user.restaurant = restaurants[num - 1];
-
         user.step = 'food_order';
 
-        return message.reply(`🍔 ${user.restaurant}
-
-Type your order/menu`);
+        return message.reply(`🍔 ${user.restaurant}\nType your order`);
     }
 
     if (user.step === 'food_order') {
-
         user.order = text;
-
         user.step = 'food_location';
 
-        return message.reply('📍 Enter Delivery Location');
+        return message.reply('📍 Delivery location');
     }
 
     if (user.step === 'food_location') {
-
         user.location = text;
-
         user.step = 'food_phone';
 
-        return message.reply('📞 Enter Phone Number');
+        return message.reply('📞 Phone number');
     }
 
     if (user.step === 'food_phone') {
 
-        user.customer_phone = text;
-
+        user.phone = text;
         user.step = 'food_confirm';
 
-        return message.reply(`🍔 FOOD ORDER SUMMARY
+        return message.reply(`🍔 SUMMARY
 
-🍔 Restaurant: ${user.restaurant}
+Restaurant: ${user.restaurant}
+Order: ${user.order}
+Location: ${user.location}
+Phone: ${user.phone}
 
-📝 Order: ${user.order}
-
-📍 Location: ${user.location}
-
-📞 Phone: ${user.customer_phone}
-
-🚚 Delivery Fee: ₦1890
+Fee: ₦1890
 
 1. Proceed
 2. Cancel`);
     }
 
-
-
-    // ================= FOOD CONFIRM =================
-
     if (user.step === 'food_confirm') {
 
         if (text === '1') {
-
             user.step = 'done';
-
-            return message.reply(`✅ Food Order Confirmed
-
-Restaurant has received your order.
-
-Reply HI to start again.`);
+            return message.reply("✅ Order confirmed");
         }
 
-        else if (text === '2') {
-
+        if (text === '2') {
             delete users[chatId];
-
-            return message.reply('❌ Food Order Cancelled');
+            return message.reply("❌ Cancelled");
         }
-
-        else {
-
-            return message.reply('Reply with:\n1. Proceed\n2. Cancel');
-        }
-    }
-
-
-
-    // ================= DONE =================
-
-    if (user.step === 'done') {
-
-        return message.reply(`✅ Request already completed
-
-Reply HI to start again.`);
     }
 
 });
